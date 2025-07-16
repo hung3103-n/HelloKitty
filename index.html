@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hello Kitty 3D</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 50%, #fecfef 100%);
+            width: 100vw;
+            height: 100vh;
+        }
+        canvas {
+            display: block;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            border-radius: 15px;
+        }
+    </style>
+
+    <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.165.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.165.0/examples/jsm/" 
+            }
+        }
+    </script>
+</head>
+<body>
+    <script type="module">
+        import * as THREE from 'three';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xfecfef); 
+
+        const camera = new THREE.PerspectiveCamera(
+            75, 
+            window.innerWidth / window.innerHeight, 
+            0.1, 
+            1000 
+        );
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true }); 
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.2; 
+
+        document.body.appendChild(renderer.domElement);
+
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1.5); 
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0); 
+        directionalLight.position.set(5, 10, 7); 
+        directionalLight.castShadow = true; 
+        scene.add(directionalLight);
+
+        const pointLight = new THREE.PointLight(0xffaaff, 1.0, 100); 
+        pointLight.position.set(-5, 5, -5); 
+        scene.add(pointLight);
+
+        const loader = new GLTFLoader();
+        let helloKittyModel; 
+
+        loader.load(
+            './models/hello_kitty.glb', 
+            function (gltf) {
+                helloKittyModel = gltf.scene; 
+                scene.add(helloKittyModel);
+
+                helloKittyModel.traverse((child) => {
+                    if (child.isMesh) {
+                        child.castShadow = true;
+                        child.receiveShadow = true;
+                        if (child.material.map) {
+                            child.material.map.encoding = THREE.sRGBEncoding; 
+                        }
+                    }
+                });
+
+                const bbox = new THREE.Box3().setFromObject(helloKittyModel); 
+                const center = new THREE.Vector3();
+                bbox.getCenter(center); 
+                const size = new THREE.Vector3();
+                bbox.getSize(size);
+
+                const maxDim = Math.max(size.x, size.y, size.z); 
+                const fov = camera.fov * (Math.PI / 180); 
+                let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2)); 
+                cameraZ *= 1.5; 
+                
+                camera.position.set(center.x, center.y, center.z + cameraZ);
+                camera.lookAt(center); 
+
+                controls.target.copy(center);
+                controls.update(); 
+            },
+            function (xhr) {
+                console.log((xhr.loaded / xhr.total * 100).toFixed(2) + '% loaded');
+            },
+            function (error) {
+                console.error('An error occurred while loading the model:', error);
+            }
+        );
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true; 
+        controls.dampingFactor = 0.05;
+        controls.screenSpacePanning = false; 
+        
+        controls.maxPolarAngle = Math.PI; 
+
+        controls.autoRotate = true;
+        controls.autoRotateSpeed = 2.0; 
+
+        function animate() {
+            requestAnimationFrame(animate); 
+
+            controls.update(); 
+
+            renderer.render(scene, camera); 
+        }
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight; 
+            camera.updateProjectionMatrix(); 
+            renderer.setSize(window.innerWidth, window.innerHeight); 
+        });
+    </script>
+</body>
+</html>
